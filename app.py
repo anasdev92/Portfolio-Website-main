@@ -3,7 +3,8 @@ import json
 from os import link
 import requests
 import pandas as pd
-from flask import Flask,request,render_template # type: ignore
+from flask import Flask,request,render_template,redirect,url_for
+import sqlite3
 
 app = Flask(__name__)
 
@@ -93,12 +94,40 @@ def projects():
         d[projectname]['date']=date
     return render_template('projects.html',projectinfo=d,name=name)
 
-@app.route('/resume')
-def resume():
-    df_basic_info.fillna('',inplace=True)
-    resumelink = df_basic_info[df_basic_info['Column']=='Resume Link']['Value'].values[0]
-    return render_template('resume.html',resumelink=resumelink,name=name)
+# Route to display the contact form
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
 
+def init_db():
+    conn = sqlite3.connect('contacts.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            message TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
+# Route to handle form submission
+@app.route('/submit', methods=['POST'])
+def submit():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        message = request.form['message']
+
+    conn = sqlite3.connect('contacts.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO contacts (name, email, message) VALUES (?, ?, ?)', (name, email, message))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('contact'))
 if __name__ == '__main__':
+    init_db()
     app.run(debug=True)
